@@ -1,48 +1,91 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { Button } from '@nextui-org/react'
 import { lz77Compress, getFrequencies, buildHuffmanTree, buildCodes, encodeText } from './utils/utils';
 import { AnimationBackground, CustomNavbar, ImageCompressor, ImageUpload } from './components';
 
-const convertToBinaryString = (text) => {
-  const bytes = new Uint8Array(text.length);
-  for (let i = 0; i < text.length; i++) {
-    bytes[i] = text.charCodeAt(i);
-  }
-  return bytes;
+function convertToBinaryString(buffer) {
+  return Array.from(buffer)
+    .map(byte => byte.toString(2).padStart(8, '0'))
+    .join('');
 }
 
-function handleFileUpload(event, action) {
-  const file = event.target.files[0];
-  console.log('File:', file);
-  if (!file) return;
+// function handleFileUpload(event, action) {
+//   const file = event.target.files[0];
+//   if (!file) return;
+  
+//   console.log('File:', file);
 
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    const text = convertToBinaryString(e.target.result);
+//   const reader = new FileReader();
+//   reader.onload = async (e) => {
+//     const binaryString = convertToBinaryString(new Uint8Array(e.target.result));
+    
+//     if (action === "compress") {
+//       const compressedData = lz77Compress(binaryString);
+      
+//       const frequencies = getFrequencies(compressedData);
+      
+//       const huffmanTree = buildHuffmanTree(frequencies);
+//       const codes = buildCodes(huffmanTree);
+//       const encodedText = encodeText(compressedData, codes);
+      
+//       console.log('Compressed Data (Binary):', encodedText);
 
-    let compressedData;
-    if (action === "compress") {
-      compressedData = lz77Compress(text);
-      const frequencies = getFrequencies(compressedData);
-      const huffmanTree = buildHuffmanTree(frequencies);
-      const codes = buildCodes(huffmanTree);
-      const encodedText = encodeText(compressedData, codes);
-      console.log('Compressed Data:', encodedText);
-      // Aquí deberías convertir encodedText en un Blob si quieres permitir su descarga
+//       const blob = new Blob([encodedText], { type: "text/plain" });
+//       const url = URL.createObjectURL(blob);
+//       console.log("Download Link:", url);
+//     } else if (action === "decompress") {
+//       // Lógica de descompresión aquí
+//     }
+//   };
 
-      new Blob([encodedText], { type: "text/plain" });
-
-    } else if (action === "decompress") {
-      // Lógica de descompresión si es necesaria
-    }
-  };
-  reader.readAsText(file); // Leer como texto por simplicidad, ajustar según el contenido del archivo
+//   reader.readAsArrayBuffer(file); // Leer como ArrayBuffer para manipular los bytes
+// }
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 export default function Home() {
- 
+  const [compressedBlob, setCompressedBlob] = useState(null);
+  console.log('compressedBlob', compressedBlob);
+  const handleFileUpload = (event, action) => {
+    return new Promise((resolve, reject) => {
+      const file = event.target.files[0];
+      if (!file) return reject('No file selected');
+  
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const binaryString = convertToBinaryString(new Uint8Array(e.target.result));
+  
+          if (action === "compress") {
+            const compressedData = lz77Compress(binaryString);
+            const frequencies = getFrequencies(compressedData);
+            const huffmanTree = buildHuffmanTree(frequencies);
+            const codes = buildCodes(huffmanTree);
+            const encodedText = encodeText(compressedData, codes);
+  
+            const blob = new Blob([encodedText], { type: "text/plain" });
+            setCompressedBlob(blob);
+            resolve(blob);
+          }
+        } catch (error) {
+          reject(error);
+        }
+      };
+  
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(file);
+    });
+  };
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-purple-700 to-indigo-900 text-white relative overflow-hidden">
@@ -58,7 +101,7 @@ export default function Home() {
               {/* Columna izquierda */}
               <ImageCompressor />
               {/* Columna derecha */}
-              <ImageUpload onUpload={handleFileUpload} />
+              <ImageUpload onUpload={handleFileUpload} downloadBlob={downloadBlob} />
             </div>
             <hr className="my-8" />
             <div className="text-center">
@@ -72,7 +115,7 @@ export default function Home() {
               <Button
                 color="warning"
                 size="lg"
-                onClick={() => downloadBlob(decompressedBlob, "decompressed.txt")}
+                onClick={() => {}}
               >
                 Descargar archivo descomprimido
               </Button>

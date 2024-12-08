@@ -49,27 +49,44 @@ export const buildCodes = (node, currentCode = "", codes = {}) => {
 export const encodeText = (text, codes) => {
     const compressedLZ77 = lz77Compress(text);
     console.log('compressedLZ77', compressedLZ77);
-
+  
     let result = '';
     let buffer = '';
-
+  
     for (let i = 0; i < compressedLZ77.length; i++) {
-        buffer += compressedLZ77[i];
-
-        if (codes.hasOwnProperty(buffer)) {
+      const char = compressedLZ77[i];
+  
+      if (char === '(') {
+        const closingIndex = compressedLZ77.indexOf(')', i);
+        if (closingIndex !== -1) {
+          buffer = compressedLZ77.slice(i, closingIndex + 1);
+          i = closingIndex;
+  
+          if (codes.hasOwnProperty(buffer)) {
             result += codes[buffer];
-            buffer = '';
+          } else {
+            console.error(`No mapping found for: ${buffer}`);
+          }
+          buffer = '';
+          continue;
         }
+      }
+  
+      buffer += char;
+  
+      if (codes.hasOwnProperty(buffer)) {
+        result += codes[buffer];
+        buffer = '';
+      }
     }
-
+  
     if (buffer.length > 0) {
-        console.log('Unmapped characters at the end:', buffer);
-        result += buffer;
+      console.warn('Unmapped characters at the end:', buffer);
     }
-
+  
     console.log('encodeText', result);
     return result;
-};
+  };
 
 export const huffmanDecode = (encodedText, huffmanTree) => {
     let currentNode = huffmanTree;
@@ -88,7 +105,9 @@ export const huffmanDecode = (encodedText, huffmanTree) => {
 
 export const decodeText = (text, huffmanTree) => {
     let decompressedHuffman = huffmanDecode(text, huffmanTree);
-    return lz77Decompress(decompressedHuffman);
+    const result = lz77Decompress(decompressedHuffman);
+    console.log('decodeText', result);
+    return result;
 };
 
 export const lz77Compress = (input) => {
@@ -142,7 +161,7 @@ export const lz77Decompress = (input) => {
         }
     }
 
-    console.log('lz77Decompress', output);
+    console.log('lz77Decompress', output.join(''));
 
     return output.join('');
 };
